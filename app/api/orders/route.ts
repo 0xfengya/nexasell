@@ -116,9 +116,10 @@ export async function POST(request: NextRequest) {
         subtotal,
         shipping_cost,
         total,
-        status:           "pending",
+        // POS cash/card langsung lunas; online atau ewallet/qris tetap pending
+        status:           (source === "pos" && pay_method !== "qris") ? "paid"    : "pending",
         pay_method:       pay_method || null,
-        pay_status:       "pending",
+        pay_status:       (source === "pos" && pay_method !== "qris") ? "success" : "pending",
         source,
         cashier_id:       cashier_id || null,
       })
@@ -154,28 +155,33 @@ export async function POST(request: NextRequest) {
     // Kurangi stok produk
     for (const item of items) {
       if (item.product_id) {
-        await supabase.rpc("decrement_stock", {
-          p_product_id: item.product_id,
-          p_qty:        item.quantity,
-        }).catch(() => {
-          // Fallback manual jika RPC belum ada
-          supabase
-            .from("products")
-            .select("stock, sold")
-            .eq("id", item.product_id)
-            .single()
-            .then(({ data }) => {
-              if (data) {
-                supabase
-                  .from("products")
-                  .update({
-                    stock: Math.max(0, data.stock - item.quantity),
-                    sold:  data.sold + item.quantity,
-                  })
-                  .eq("id", item.product_id);
-              }
-            });
-        });
+        try {
+          const { error: rpcErr } = await supabase.rpc("decrement_stock", {
+            p_product_id: item.product_id,
+            p_qty:        item.quantity,
+          });
+
+          if (rpcErr) {
+            // Fallback manual jika RPC belum ada / error
+            const { data: prodData } = await supabase
+              .from("products")
+              .select("stock, sold")
+              .eq("id", item.product_id)
+              .single();
+
+            if (prodData) {
+              await supabase
+                .from("products")
+                .update({
+                  stock: Math.max(0, prodData.stock - item.quantity),
+                  sold:  (prodData.sold ?? 0) + item.quantity,
+                })
+                .eq("id", item.product_id);
+            }
+          }
+        } catch {
+          // Abaikan error stok agar order tetap berhasil dibuat
+        }
       }
     }
 

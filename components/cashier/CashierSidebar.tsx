@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingBag, History, X, Menu, Zap, Settings, User, KeyRound, LogOut, ChevronRight, ChevronLeft, Bell } from "lucide-react";
+import { ShoppingBag, History, X, Menu, Zap, Settings, User, KeyRound, LogOut, ChevronRight, ChevronLeft, Bell, Loader2 } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const nav = [
   { href:"/cashier",          label:"POS Terminal", icon:ShoppingBag, color:"#10b981", bg:"rgba(16,185,129,0.1)"  },
@@ -12,14 +13,40 @@ const nav = [
 ];
 
 function UserDropdown() {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const router   = useRouter();
+  const supabase = createClient();
+  const [open,        setOpen]        = useState(false);
+  const [loggingOut,  setLoggingOut]  = useState(false);
+  const [userName,    setUserName]    = useState("Kasir");
+  const [userInitial, setUserInitial] = useState("K");
   const ref = useRef<HTMLDivElement>(null);
+
+  // Ambil nama user dari session
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("profiles").select("full_name, role").eq("id", user.id).single()
+        .then(({ data }) => {
+          const name = data?.full_name || user.email?.split("@")[0] || "Kasir";
+          setUserName(name);
+          setUserInitial(name[0].toUpperCase());
+        });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    router.push("/cashier/login");
+    router.refresh(); // flush cache agar proxy tidak redirect balik
+  };
 
   const items = [
     { icon:User,     label:"Edit Profil",    href:"/cashier/settings" },
@@ -36,10 +63,10 @@ function UserDropdown() {
           <div className="px-4 py-3" style={{ borderBottom:"1px solid var(--border)" }}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
-                style={{ background:"linear-gradient(135deg,#10b981,#06b6d4)" }}>S</div>
+                style={{ background:"linear-gradient(135deg,#10b981,#06b6d4)" }}>{userInitial}</div>
               <div className="min-w-0">
-                <p className="text-sm font-black" style={{ color:"var(--text)" }}>Siti Rahayu</p>
-                <p className="text-[10px]" style={{ color:"var(--text3)" }}>Cashier · Shift Pagi</p>
+                <p className="text-sm font-black truncate" style={{ color:"var(--text)" }}>{userName}</p>
+                <p className="text-[10px]" style={{ color:"var(--text3)" }}>Cashier Station</p>
               </div>
             </div>
           </div>
@@ -55,12 +82,16 @@ function UserDropdown() {
             ))}
           </div>
           <div style={{ borderTop:"1px solid var(--border)" }}>
-            <button onClick={()=>router.push("/cashier/login")}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold"
+            <button onClick={handleLogout} disabled={loggingOut}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold disabled:opacity-60"
               style={{ color:"#ef4444" }}
-              onMouseEnter={e=>(e.currentTarget.style.background="rgba(239,68,68,0.06)")}
+              onMouseEnter={e=>{ if(!loggingOut) e.currentTarget.style.background="rgba(239,68,68,0.06)"; }}
               onMouseLeave={e=>(e.currentTarget.style.background="")}>
-              <LogOut className="w-4 h-4"/>Logout
+              {loggingOut
+                ? <Loader2 className="w-4 h-4 animate-spin"/>
+                : <LogOut className="w-4 h-4"/>
+              }
+              {loggingOut ? "Keluar..." : "Logout"}
             </button>
           </div>
         </div>
@@ -71,13 +102,13 @@ function UserDropdown() {
         onMouseLeave={e=>(e.currentTarget.style.background="")}>
         <div className="relative flex-shrink-0">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black"
-            style={{ background:"linear-gradient(135deg,#10b981,#06b6d4)" }}>S</div>
+            style={{ background:"linear-gradient(135deg,#10b981,#06b6d4)" }}>{userInitial}</div>
           <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
             style={{ background:"#10b981",borderColor:"var(--surface)" }}/>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold truncate" style={{ color:"var(--text)" }}>Siti Rahayu</p>
-          <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>Cashier · Shift Pagi</p>
+          <p className="text-xs font-bold truncate" style={{ color:"var(--text)" }}>{userName}</p>
+          <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>Cashier Station</p>
         </div>
         <Settings className="w-3.5 h-3.5 flex-shrink-0" style={{ color:"var(--text3)" }}/>
       </button>

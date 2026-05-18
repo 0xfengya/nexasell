@@ -159,3 +159,17 @@ INSERT INTO products (name, price, original_price, category, image_url, descript
 ('USB-C Hub 7-in-1',  320000, NULL,  'electronics', 'https://images.unsplash.com/photo-1625842268584-8f3296236761?w=400&q=80', '7-port USB-C hub with 4K HDMI, SD card reader, and 100W PD charging.',                    22,  78, 4.6, 'New'),
 ('Tote Bag Canvas',    95000, NULL,  'fashion',     'https://images.unsplash.com/photo-1591561954557-26941169b49e?w=400&q=80', 'Heavy-duty canvas tote bag with inner zip pocket.',                                        50, 267, 4.5, NULL),
 ('Face Wash Gentle',   89000, NULL,  'beauty',      'https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400&q=80', 'Gentle foam cleanser with ceramides and hyaluronic acid for all skin types.',               40, 223, 4.7, NULL);
+
+-- ─── RPC: DECREMENT STOCK ────────────────────────────────────
+-- Dipanggil dari /api/orders saat order dibuat
+-- Atomic: stock tidak bisa minus, sold selalu naik
+CREATE OR REPLACE FUNCTION decrement_stock(p_product_id UUID, p_qty INTEGER)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE products
+  SET
+    stock = GREATEST(0, stock - p_qty),
+    sold  = sold + p_qty
+  WHERE id = p_product_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
