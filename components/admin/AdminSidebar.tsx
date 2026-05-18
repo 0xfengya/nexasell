@@ -18,7 +18,9 @@ const nav = [
   { href:"/admin/settings",     label:"Pengaturan",  icon:Settings,        color:"#f59e0b", bg:"rgba(245,158,11,0.1)"  },
 ];
 
-function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login" }: { accentColor?: string; toLogin?: string }) {
+function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login", displayName = "", displayUsername = "" }: {
+  accentColor?: string; toLogin?: string; displayName?: string; displayUsername?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -35,6 +37,10 @@ function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login" }: { a
     router.push(toLogin);
   };
 
+  const initial = (displayName || displayUsername || "A").charAt(0).toUpperCase();
+  const label   = displayName || displayUsername || "Admin";
+  const sublabel = displayUsername ? `@${displayUsername}` : "Administrator";
+
   const menuItems = [
     { icon: User,     label: "Edit Profil",    action: () => { router.push("/admin/settings"); setOpen(false); } },
     { icon: KeyRound, label: "Ganti Password", action: () => { router.push("/admin/settings?tab=password"); setOpen(false); } },
@@ -50,22 +56,22 @@ function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login" }: { a
           <div className="px-4 py-3" style={{ borderBottom:"1px solid var(--border)" }}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
-                style={{ background:`linear-gradient(135deg,${accentColor},#8b5cf6)` }}>A</div>
+                style={{ background:`linear-gradient(135deg,${accentColor},#8b5cf6)` }}>{initial}</div>
               <div className="min-w-0">
-                <p className="text-sm font-black truncate" style={{ color:"var(--text)" }}>Admin User</p>
-                <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>admin@nexasell.id</p>
+                <p className="text-sm font-black truncate" style={{ color:"var(--text)" }}>{label}</p>
+                <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>{sublabel}</p>
               </div>
             </div>
           </div>
           <div className="py-1">
-            {menuItems.map(({ icon: Icon, label, action }) => (
-              <button key={label} onClick={action}
+            {menuItems.map(({ icon: Icon, label: itemLabel, action }) => (
+              <button key={itemLabel} onClick={action}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-left"
                 style={{ color:"var(--text2)", transition:"background 0.15s" }}
                 onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")}
                 onMouseLeave={e=>(e.currentTarget.style.background="")}>
                 <Icon className="w-4 h-4 flex-shrink-0" style={{ color:"var(--text3)" }} />
-                {label}
+                {itemLabel}
               </button>
             ))}
           </div>
@@ -89,13 +95,13 @@ function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login" }: { a
         onMouseLeave={e=>(e.currentTarget.style.background="")}>
         <div className="relative flex-shrink-0">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black"
-            style={{ background:`linear-gradient(135deg,${accentColor},#8b5cf6)` }}>A</div>
+            style={{ background:`linear-gradient(135deg,${accentColor},#8b5cf6)` }}>{initial}</div>
           <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
             style={{ background:"#10b981", borderColor:"var(--surface)" }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold truncate" style={{ color:"var(--text)" }}>Admin User</p>
-          <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>admin@nexasell.id</p>
+          <p className="text-xs font-bold truncate" style={{ color:"var(--text)" }}>{label}</p>
+          <p className="text-[10px] truncate" style={{ color:"var(--text3)" }}>{sublabel}</p>
         </div>
         <Settings className="w-3.5 h-3.5 flex-shrink-0" style={{ color:"var(--text3)" }} />
       </button>
@@ -103,18 +109,20 @@ function UserDropdown({ accentColor = "#6366f1", toLogin = "/admin/login" }: { a
   );
 }
 
-function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
+function SidebarContent({ isMobile = false, displayName = "", displayUsername = "" }: {
+  isMobile?: boolean; displayName?: string; displayUsername?: string;
+}) {
   const pathname = usePathname();
   const { collapsed, toggle, setMobileOpen } = useSidebar();
   const isCol = collapsed && !isMobile;
   const close = () => isMobile && setMobileOpen(false);
+  const initial = (displayName || displayUsername || "A").charAt(0).toUpperCase();
 
   return (
     <div className="flex flex-col h-full" style={{ background:"var(--surface)", borderRight:"1px solid var(--border)" }}>
 
       {/* ── HEADER ── */}
       {isCol ? (
-        /* COLLAPSED header: stacked logo + toggle button, no flex row overflow */
         <div className="flex flex-col items-center pt-3 pb-2 gap-2 flex-shrink-0" style={{ borderBottom:"1px solid var(--border)" }}>
           <Link href="/" className="block">
             <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
@@ -122,7 +130,6 @@ function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
               <Zap className="w-4 h-4 text-white" strokeWidth={2.5}/>
             </div>
           </Link>
-          {/* Toggle button — always visible, centered below logo */}
           <button
             onClick={toggle}
             className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -134,7 +141,6 @@ function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
           </button>
         </div>
       ) : (
-        /* EXPANDED header: flex row */
         <div className="flex items-center h-16 px-3 gap-2.5 flex-shrink-0" style={{ borderBottom:"1px solid var(--border)" }}>
           <Link href="/" onClick={close} className="flex-shrink-0 block">
             <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
@@ -209,7 +215,7 @@ function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
       {/* User footer */}
       <div className="px-2 pb-3 flex-shrink-0" style={{ borderTop:"1px solid var(--border)", paddingTop:8 }}>
         {!isCol ? (
-          <UserDropdown accentColor="#6366f1" toLogin="/admin/login" />
+          <UserDropdown accentColor="#6366f1" toLogin="/admin/login" displayName={displayName} displayUsername={displayUsername} />
         ) : (
           <Link href="/admin/settings"
             className="flex justify-center p-2 rounded-2xl"
@@ -218,7 +224,7 @@ function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
             onMouseLeave={e=>(e.currentTarget.style.background="")}>
             <div className="relative">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black"
-                style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>A</div>
+                style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>{initial}</div>
               <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
                 style={{ background:"#10b981", borderColor:"var(--surface)" }} />
             </div>
@@ -231,6 +237,21 @@ function SidebarContent({ isMobile = false }: { isMobile?: boolean }) {
 
 export default function AdminSidebar() {
   const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
+  const [displayName,     setDisplayName]     = useState("");
+  const [displayUsername, setDisplayUsername] = useState("");
+
+  // Load real profile data
+  useEffect(() => {
+    fetch("/api/admin/profile")
+      .then(r => r.json())
+      .then(json => {
+        if (json.data) {
+          setDisplayName(json.data.full_name ?? "");
+          setDisplayUsername(json.data.username ?? "");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -241,7 +262,7 @@ export default function AdminSidebar() {
           width: collapsed ? 68 : 256,
           transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)",
         }}>
-        <SidebarContent />
+        <SidebarContent displayName={displayName} displayUsername={displayUsername} />
       </aside>
 
       {/* Mobile: hamburger */}
@@ -258,7 +279,7 @@ export default function AdminSidebar() {
           <div className="absolute inset-0" style={{ background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)" }}
             onClick={() => setMobileOpen(false)} />
           <aside className="relative flex flex-col shadow-2xl" style={{ width:260 }}>
-            <SidebarContent isMobile />
+            <SidebarContent isMobile displayName={displayName} displayUsername={displayUsername} />
           </aside>
         </div>
       )}

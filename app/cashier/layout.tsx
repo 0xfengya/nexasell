@@ -1,14 +1,53 @@
 "use client";
 import CashierSidebar from "@/components/cashier/CashierSidebar";
 import { SidebarProvider, useSidebar } from "@/lib/SidebarContext";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 function CashierContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
   const pathname = usePathname();
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // Skip auth check on login page
+    if (pathname === "/cashier/login") { setChecking(false); return; }
+
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+      if (error || !user) { router.replace("/cashier/login"); return; }
+
+      // Fetch role from profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "cashier") {
+        // Not a cashier — redirect to admin area
+        router.replace("/admin");
+        return;
+      }
+      setChecking(false);
+    });
+  }, [pathname, router]);
 
   if (pathname === "/cashier/login") {
     return <>{children}</>;
+  }
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ background: "var(--bg)" }}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-2xl animate-pulse" style={{ background: "linear-gradient(135deg,#10b981,#06b6d4)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--text3)" }}>Memeriksa akses...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

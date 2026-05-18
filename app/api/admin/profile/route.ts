@@ -16,8 +16,17 @@ export async function GET() {
       .single();
 
     if (profileErr) throw profileErr;
+    if (profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    return NextResponse.json({ data: { ...profile, email: user.email } });
+    // Attach auth metadata (last_sign_in_at)
+    const { data: authUser } = await supabase.auth.admin.getUserById(user.id);
+
+    return NextResponse.json({
+      data: {
+        ...profile,
+        last_sign_in_at: authUser?.user?.last_sign_in_at ?? null,
+      }
+    });
   } catch (err) {
     console.error("[GET /api/admin/profile]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -32,15 +41,28 @@ export async function PATCH(request: NextRequest) {
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { full_name, phone, avatar_url } = body;
+    const { full_name, username, phone, avatar_url, notif_preferences } = body;
 
     const supabase = createAdminClient();
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!existing || existing.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { data, error: updateErr } = await supabase
       .from("profiles")
       .update({
-        ...(full_name  !== undefined && { full_name:  full_name?.trim()  || null }),
-        ...(phone      !== undefined && { phone:      phone?.trim()      || null }),
-        ...(avatar_url !== undefined && { avatar_url: avatar_url?.trim() || null }),
+        ...(full_name          !== undefined && { full_name:          full_name?.trim()  || null }),
+        ...(username           !== undefined && { username:           username?.trim()   || null }),
+        ...(phone              !== undefined && { phone:              phone?.trim()      || null }),
+        ...(avatar_url         !== undefined && { avatar_url:         avatar_url?.trim() || null }),
+        ...(notif_preferences  !== undefined && { notif_preferences }),
       })
       .eq("id", user.id)
       .select()

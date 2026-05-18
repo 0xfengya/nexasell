@@ -17,7 +17,15 @@ export async function GET() {
 
     if (profileErr) throw profileErr;
 
-    return NextResponse.json({ data: { ...profile, email: user.email } });
+    // Attach auth metadata (last_sign_in_at)
+    const { data: authUser } = await supabase.auth.admin.getUserById(user.id);
+
+    return NextResponse.json({
+      data: {
+        ...profile,
+        last_sign_in_at: authUser?.user?.last_sign_in_at ?? null,
+      }
+    });
   } catch (err) {
     console.error("[GET /api/cashier/profile]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -32,16 +40,17 @@ export async function PATCH(request: NextRequest) {
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { full_name, username, phone, shift } = body;
+    const { full_name, username, phone, shift, notif_preferences } = body;
 
     const supabase = createAdminClient();
     const { data, error: updateErr } = await supabase
       .from("profiles")
       .update({
-        ...(full_name !== undefined && { full_name: full_name?.trim() || null }),
-        ...(username  !== undefined && { username:  username?.trim()  || null }),
-        ...(phone     !== undefined && { phone:     phone?.trim()     || null }),
-        ...(shift     !== undefined && { shift:     shift             || null }),
+        ...(full_name         !== undefined && { full_name:         full_name?.trim() || null }),
+        ...(username          !== undefined && { username:          username?.trim()  || null }),
+        ...(phone             !== undefined && { phone:             phone?.trim()     || null }),
+        ...(shift             !== undefined && { shift:             shift             || null }),
+        ...(notif_preferences !== undefined && { notif_preferences }),
       })
       .eq("id", user.id)
       .select()

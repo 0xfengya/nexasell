@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { User, Lock, Bell, Shield, Camera, Check, Eye, EyeOff, Clock, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,7 +10,7 @@ const TABS = [
   { id:"security", label:"Keamanan",       icon:Shield },
 ];
 
-const NOTIFS = [
+const NOTIF_KEYS = [
   { key:"new_trx", label:"Transaksi Masuk",  desc:"Notifikasi setiap ada pelanggan baru",      default:true  },
   { key:"shift",   label:"Reminder Shift",   desc:"Pengingat 15 menit sebelum shift berakhir", default:true  },
   { key:"report",  label:"Laporan Shift",    desc:"Ringkasan transaksi di akhir shift",         default:false },
@@ -19,16 +19,17 @@ const NOTIFS = [
 
 const ACCENT = "#10b981";
 
-
-// Didefinisikan di LUAR komponen agar tidak di-recreate tiap render -> tidak ada delay ketik
-function Field({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Field({ label, value, onChange, type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string;
+}) {
   return (
     <div>
-      <label className="block text-xs font-bold mb-2" style={{ color: "var(--text2)" }}>{label}</label>
+      <label className="block text-xs font-bold mb-2" style={{ color:"var(--text2)" }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
         className="w-full px-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all"
-        style={{ background: "var(--surface2)", border: "1.5px solid var(--border)", color: "var(--text)" }}
-        onFocus={e => (e.target.style.borderColor = ACCENT)} onBlur={e => (e.target.style.borderColor = "var(--border)")} />
+        style={{ background:"var(--surface2)", border:"1.5px solid var(--border)", color:"var(--text)" }}
+        onFocus={e => (e.target.style.borderColor = ACCENT)}
+        onBlur={e  => (e.target.style.borderColor = "var(--border)")} />
     </div>
   );
 }
@@ -43,6 +44,23 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     </button>
   );
 }
+
+function formatLastLogin(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1)   return "Baru saja";
+  if (diffMin < 60)  return `${diffMin} menit lalu`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24)   return `${diffHr} jam lalu`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay === 1) return "Kemarin";
+  if (diffDay < 7)   return `${diffDay} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day:"numeric", month:"short", year:"numeric" });
+}
+
 export default function CashierSettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [saved,     setSaved]     = useState(false);
@@ -51,29 +69,47 @@ export default function CashierSettingsPage() {
   const [saving,    setSaving]    = useState(false);
   const [showNew,   setShowNew]   = useState(false);
   const [profile,   setProfile]   = useState({ name:"", username:"", phone:"", shift:"pagi" });
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
+  const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [pwForm,    setPwForm]    = useState({ newPw:"", confirm:"" });
   const [pwErr,     setPwErr]     = useState("");
   const [pwSaving,  setPwSaving]  = useState(false);
-  const [notifs,    setNotifs]    = useState<Record<string,boolean>>(
-    Object.fromEntries(NOTIFS.map(n => [n.key, n.default]))
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifs, setNotifs] = useState<Record<string, boolean>>(
+    Object.fromEntries(NOTIF_KEYS.map(n => [n.key, n.default]))
   );
 
-  useEffect(() => {
-    fetch("/api/cashier/profile")
-      .then(r => r.json())
-      .then(json => {
-        if (json.data) {
-          setProfile({
-            name:     json.data.full_name ?? "",
-            username: json.data.username  ?? "",
-            phone:    json.data.phone     ?? "",
-            shift:    json.data.shift     ?? "pagi",
-          });
+  const loadProfile = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cashier/profile");
+      const json = await res.json();
+      if (json.data) {
+        setProfile({
+          name:     json.data.full_name ?? "",
+          username: json.data.username  ?? "",
+          phone:    json.data.phone     ?? "",
+          shift:    json.data.shift     ?? "pagi",
+        });
+        setLastLogin(json.data.last_sign_in_at ?? null);
+
+        // Merge saved notif prefs dari DB dengan defaults
+        if (json.data.notif_preferences && typeof json.data.notif_preferences === "object") {
+          setNotifs(prev => ({ ...prev, ...json.data.notif_preferences }));
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      }
+
+      // Session count
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      setSessionCount(sessionData?.session ? 1 : 0);
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
   const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
 
@@ -116,6 +152,24 @@ export default function CashierSettingsPage() {
       setPwErr(err instanceof Error ? err.message : "Gagal ganti password");
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const handleNotifSave = async () => {
+    setNotifSaving(true); setSaveErr("");
+    try {
+      const res = await fetch("/api/cashier/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notif_preferences: notifs }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Gagal menyimpan");
+      showSaved();
+    } catch (err) {
+      setSaveErr(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setNotifSaving(false);
     }
   };
 
@@ -164,11 +218,11 @@ export default function CashierSettingsPage() {
           </div>
           <div className="space-y-0.5">
             {TABS.map(t => (
-              <button key={t.id} onClick={()=>setActiveTab(t.id)}
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all text-left"
-                style={activeTab===t.id ? { background:`${ACCENT}15`, color:ACCENT } : { color:"var(--text2)" }}
-                onMouseEnter={e=>{ if(activeTab!==t.id) e.currentTarget.style.background="var(--surface2)"; }}
-                onMouseLeave={e=>{ if(activeTab!==t.id) e.currentTarget.style.background=""; }}>
+                style={activeTab === t.id ? { background:`${ACCENT}15`, color:ACCENT } : { color:"var(--text2)" }}
+                onMouseEnter={e => { if (activeTab !== t.id) e.currentTarget.style.background = "var(--surface2)"; }}
+                onMouseLeave={e => { if (activeTab !== t.id) e.currentTarget.style.background = ""; }}>
                 <t.icon className="w-4 h-4 flex-shrink-0" />
                 {t.label}
               </button>
@@ -178,10 +232,11 @@ export default function CashierSettingsPage() {
 
         <div className="rounded-3xl p-6" style={{ background:"var(--surface)", border:"1px solid var(--border)" }}>
 
-          {activeTab==="profile" && (
+          {/* ── Profile ── */}
+          {activeTab === "profile" && (
             loading ? (
               <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
-                <Loader2 className="w-5 h-5 animate-spin"/><span className="text-sm">Memuat profil...</span>
+                <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Memuat profil...</span>
               </div>
             ) : (
               <form onSubmit={handleProfileSave} className="space-y-5">
@@ -190,16 +245,16 @@ export default function CashierSettingsPage() {
                   <p className="text-sm" style={{ color:"var(--text2)" }}>Update informasi akun kasir Anda</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Nama Lengkap" value={profile.name}     onChange={v=>setProfile(p=>({...p,name:v}))} />
-                  <Field label="Username"     value={profile.username} onChange={v=>setProfile(p=>({...p,username:v}))} />
-                  <Field label="No. Telepon"  value={profile.phone}    onChange={v=>setProfile(p=>({...p,phone:v}))} type="tel" />
+                  <Field label="Nama Lengkap" value={profile.name}     onChange={v => setProfile(p => ({ ...p, name:v }))} />
+                  <Field label="Username"     value={profile.username} onChange={v => setProfile(p => ({ ...p, username:v }))} />
+                  <Field label="No. Telepon"  value={profile.phone}    onChange={v => setProfile(p => ({ ...p, phone:v }))} type="tel" />
                   <div>
                     <label className="block text-xs font-bold mb-2" style={{ color:"var(--text2)" }}>Shift</label>
                     <div className="grid grid-cols-3 gap-2">
                       {["pagi","siang","malam"].map(s => (
-                        <button key={s} type="button" onClick={()=>setProfile(p=>({...p,shift:s}))}
+                        <button key={s} type="button" onClick={() => setProfile(p => ({ ...p, shift:s }))}
                           className="py-2.5 rounded-2xl text-xs font-bold capitalize transition-all"
-                          style={profile.shift===s
+                          style={profile.shift === s
                             ? { background:`linear-gradient(135deg,${ACCENT},#059669)`, color:"#fff", boxShadow:"0 2px 8px rgba(16,185,129,0.3)" }
                             : { background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text2)" }}>
                           {s}
@@ -211,14 +266,15 @@ export default function CashierSettingsPage() {
                 <button type="submit" disabled={saving}
                   className="px-8 py-3 rounded-2xl text-white font-black text-sm flex items-center gap-2 disabled:opacity-60"
                   style={{ background:`linear-gradient(135deg,${ACCENT},#059669)`, boxShadow:"0 4px 16px rgba(16,185,129,0.35)" }}>
-                  {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   {saving ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
               </form>
             )
           )}
 
-          {activeTab==="password" && (
+          {/* ── Password ── */}
+          {activeTab === "password" && (
             <form onSubmit={handlePwSave} className="space-y-5">
               <div>
                 <h2 className="font-black text-lg mb-1" style={{ color:"var(--text)", fontFamily:"Outfit,sans-serif" }}>Ganti Password</h2>
@@ -229,86 +285,133 @@ export default function CashierSettingsPage() {
                   <label className="block text-xs font-bold mb-2" style={{ color:"var(--text2)" }}>Password Baru</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color:"var(--text3)" }} />
-                    <input type={showNew?"text":"password"} value={pwForm.newPw} onChange={e=>setPwForm(f=>({...f,newPw:e.target.value}))} required
+                    <input type={showNew ? "text" : "password"} value={pwForm.newPw}
+                      onChange={e => setPwForm(f => ({ ...f, newPw:e.target.value }))} required
                       className="w-full pl-11 pr-12 py-3 rounded-2xl text-sm font-medium outline-none transition-all"
                       style={{ background:"var(--surface2)", border:"1.5px solid var(--border)", color:"var(--text)" }}
-                      onFocus={e=>(e.target.style.borderColor=ACCENT)} onBlur={e=>(e.target.style.borderColor="var(--border)")} />
-                    <button type="button" onClick={()=>setShowNew(s=>!s)} className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color:"var(--text3)" }}>
-                      {showNew ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                      onFocus={e => (e.target.style.borderColor = ACCENT)}
+                      onBlur={e  => (e.target.style.borderColor = "var(--border)")} />
+                    <button type="button" onClick={() => setShowNew(s => !s)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color:"var(--text3)" }}>
+                      {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold mb-2" style={{ color:"var(--text2)" }}>Konfirmasi Password Baru</label>
-                  <input type="password" value={pwForm.confirm} onChange={e=>setPwForm(f=>({...f,confirm:e.target.value}))} required
+                  <input type="password" value={pwForm.confirm}
+                    onChange={e => setPwForm(f => ({ ...f, confirm:e.target.value }))} required
                     className="w-full px-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all"
-                    style={{ background:"var(--surface2)", border:`1.5px solid ${pwErr?"#ef4444":"var(--border)"}`, color:"var(--text)" }}
-                    onFocus={e=>(e.target.style.borderColor=ACCENT)} onBlur={e=>(e.target.style.borderColor=pwErr?"#ef4444":"var(--border)")} />
+                    style={{ background:"var(--surface2)", border:`1.5px solid ${pwErr ? "#ef4444" : "var(--border)"}`, color:"var(--text)" }}
+                    onFocus={e => (e.target.style.borderColor = ACCENT)}
+                    onBlur={e  => (e.target.style.borderColor = pwErr ? "#ef4444" : "var(--border)")} />
                   {pwErr && <p className="text-xs text-red-500 mt-1">{pwErr}</p>}
                 </div>
               </div>
               <button type="submit" disabled={pwSaving}
                 className="px-8 py-3 rounded-2xl text-white font-black text-sm flex items-center gap-2 disabled:opacity-60"
                 style={{ background:`linear-gradient(135deg,${ACCENT},#059669)`, boxShadow:"0 4px 16px rgba(16,185,129,0.35)" }}>
-                {pwSaving && <Loader2 className="w-4 h-4 animate-spin"/>}
+                {pwSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                 {pwSaving ? "Menyimpan..." : "Update Password"}
               </button>
             </form>
           )}
 
-          {activeTab==="notif" && (
+          {/* ── Notifikasi ── */}
+          {activeTab === "notif" && (
             <div>
               <div className="mb-5">
                 <h2 className="font-black text-lg mb-1" style={{ color:"var(--text)", fontFamily:"Outfit,sans-serif" }}>Notifikasi</h2>
-                <p className="text-sm" style={{ color:"var(--text2)" }}>Atur preferensi notifikasi kasir</p>
+                <p className="text-sm" style={{ color:"var(--text2)" }}>Preferensi tersimpan ke akun Anda</p>
               </div>
-              <div className="space-y-0">
-                {NOTIFS.map((n, i) => (
-                  <div key={n.key} className="flex items-center justify-between py-4"
-                    style={{ borderBottom: i < NOTIFS.length-1 ? "1px solid var(--border)" : "none" }}>
-                    <div>
-                      <p className="text-sm font-bold" style={{ color:"var(--text)" }}>{n.label}</p>
-                      <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>{n.desc}</p>
-                    </div>
-                    <Toggle checked={notifs[n.key]} onChange={v=>setNotifs(prev=>({...prev,[n.key]:v}))} />
+              {loading ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Memuat preferensi...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-0">
+                    {NOTIF_KEYS.map((n, i) => (
+                      <div key={n.key} className="flex items-center justify-between py-4"
+                        style={{ borderBottom: i < NOTIF_KEYS.length - 1 ? "1px solid var(--border)" : "none" }}>
+                        <div>
+                          <p className="text-sm font-bold" style={{ color:"var(--text)" }}>{n.label}</p>
+                          <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>{n.desc}</p>
+                        </div>
+                        <Toggle checked={!!notifs[n.key]} onChange={v => setNotifs(prev => ({ ...prev, [n.key]:v }))} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="pt-4">
-                <button onClick={showSaved} className="px-8 py-3 rounded-2xl text-white font-black text-sm"
-                  style={{ background:`linear-gradient(135deg,${ACCENT},#059669)`, boxShadow:"0 4px 16px rgba(16,185,129,0.35)" }}>
-                  Simpan Preferensi
-                </button>
-              </div>
+                  <div className="pt-4">
+                    <button onClick={handleNotifSave} disabled={notifSaving}
+                      className="px-8 py-3 rounded-2xl text-white font-black text-sm flex items-center gap-2 disabled:opacity-60"
+                      style={{ background:`linear-gradient(135deg,${ACCENT},#059669)`, boxShadow:"0 4px 16px rgba(16,185,129,0.35)" }}>
+                      {notifSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {notifSaving ? "Menyimpan..." : "Simpan Preferensi"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {activeTab==="security" && (
+          {/* ── Keamanan ── */}
+          {activeTab === "security" && (
             <div className="space-y-5">
               <div>
                 <h2 className="font-black text-lg mb-1" style={{ color:"var(--text)", fontFamily:"Outfit,sans-serif" }}>Keamanan</h2>
-                <p className="text-sm" style={{ color:"var(--text2)" }}>Kelola keamanan akun kasir</p>
+                <p className="text-sm" style={{ color:"var(--text2)" }}>Informasi keamanan akun kasir</p>
               </div>
-              <div className="space-y-3">
-                {[
-                  { t:"Status Shift",   d:`Shift ${profile.shift} aktif`,     badge:"Aktif",    col:ACCENT    },
-                  { t:"Session Aktif",  d:"Login dari 1 perangkat",           badge:"1 sesi",   col:ACCENT    },
-                  { t:"Login Terakhir", d:"Hari ini",                         badge:"Tadi",     col:"#6366f1" },
-                  { t:"PIN Kasir",      d:"Gunakan PIN untuk transaksi cepat", badge:"Atur PIN", col:"#f59e0b" },
-                ].map(item => (
-                  <div key={item.t} className="flex items-center justify-between p-4 rounded-2xl"
-                    style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
-                    <div>
-                      <p className="text-sm font-bold" style={{ color:"var(--text)" }}>{item.t}</p>
-                      <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>{item.d}</p>
+              {loading ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Memuat data...</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[
+                    {
+                      t: "Status Shift",
+                      d: `Shift ${profile.shift || "—"} aktif`,
+                      badge: "Aktif",
+                      col: ACCENT,
+                    },
+                    {
+                      t: "Session Aktif",
+                      d: sessionCount !== null
+                        ? `Login dari ${sessionCount} perangkat`
+                        : "Mengambil data...",
+                      badge: sessionCount !== null ? `${sessionCount} sesi` : "—",
+                      col: ACCENT,
+                    },
+                    {
+                      t: "Login Terakhir",
+                      d: lastLogin
+                        ? new Date(lastLogin).toLocaleString("id-ID", { dateStyle:"medium", timeStyle:"short" })
+                        : "Tidak tersedia",
+                      badge: formatLastLogin(lastLogin),
+                      col: "#6366f1",
+                    },
+                    {
+                      t: "PIN Kasir",
+                      d: "Gunakan PIN untuk transaksi cepat",
+                      badge: "Atur PIN",
+                      col: "#f59e0b",
+                    },
+                  ].map(item => (
+                    <div key={item.t} className="flex items-center justify-between p-4 rounded-2xl"
+                      style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color:"var(--text)" }}>{item.t}</p>
+                        <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>{item.d}</p>
+                      </div>
+                      <span className="text-[10px] font-black px-2.5 py-1 rounded-full"
+                        style={{ background:`${item.col}15`, color:item.col, border:`1px solid ${item.col}25` }}>
+                        {item.badge}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full cursor-pointer"
-                      style={{ background:`${item.col}15`, color:item.col, border:`1px solid ${item.col}25` }}>
-                      {item.badge}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
