@@ -28,7 +28,16 @@ export async function createClient() {
   );
 }
 
-// ─── Admin client (bypasses RLS, hanya untuk API routes) ─────
+// ─── Helper: ambil role profile user (bypass type inference issue) ──
+export async function getProfileRole(userId: string): Promise<{ role: "admin" | "cashier" } | null> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  return data as { role: "admin" | "cashier" } | null;
+}
 export function createAdminClient() {
   const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
   return createSupabaseClient<Database>(

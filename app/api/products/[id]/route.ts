@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient, getProfileRole } from "@/lib/supabase/server";
 
 // Helper: cek apakah user adalah admin
 async function requireAdmin() {
@@ -7,11 +7,7 @@ async function requireAdmin() {
   const { data: { user }, error } = await supabaseUser.auth.getUser();
   if (error || !user) return { error: "Unauthorized", status: 401 as const };
 
-  const { data: profile } = await supabaseUser
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const profile = await getProfileRole(user.id);
 
   if (!profile || profile.role !== "admin") return { error: "Forbidden", status: 403 as const };
   return { user };

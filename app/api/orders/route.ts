@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient, getProfileRole } from "@/lib/supabase/server";
 
 // Buat order number unik: NXS-YYYYMMDD-XXXX
 function generateOrderNumber(): string {
@@ -20,11 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile } = await supabaseUser
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    const profile = await getProfileRole(user.id);
 
     if (!profile) return NextResponse.json({ error: "Profile tidak ditemukan" }, { status: 403 });
 
