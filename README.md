@@ -1,8 +1,20 @@
 # NexaSell
 
-**NexaSell** is a full-stack Point of Sale (POS) and online storefront system built with Next.js 15, TypeScript, Supabase, and Tailwind CSS. It combines a customer-facing shop, a cashier panel, and an admin dashboard into a single, cohesive platform.
+**NexaSell** is a full-stack Point of Sale (POS) and online storefront system built with Next.js 16, TypeScript, Supabase, and Tailwind CSS. It combines a customer-facing shop, a cashier panel, and an admin dashboard into a single, cohesive platform.
 
-> **Stack:** Next.js 15 · TypeScript · Supabase (PostgreSQL + Auth) · Tailwind CSS v4 · Recharts · Lucide React
+> **Stack:** Next.js 16 · TypeScript · Supabase (PostgreSQL + Auth) · Tailwind CSS v4 · Recharts · Lucide React
+
+## 🔑 Demo Accounts
+
+After running `seed.js`, use these accounts to log in:
+
+| Role | Email | Password | Login Page |
+|------|-------|----------|------------|
+| Admin | `admin@nexasell.id` | `admin123456` | `/admin` |
+| Cashier | `kasir@nexasell.id` | `kasir123456` | `/cashier` |
+| Cashier 2 | `kasir2@nexasell.id` | `kasir123456` | `/cashier` |
+
+> These are demo credentials. Change all passwords before deploying to production.
 
 ---
 
@@ -44,13 +56,13 @@
 
 ---
 
-### 📦 Admin — Product Management (`/admin/products`)
+### 📦 Admin: Product Management (`/admin/products`)
 <!-- Add screenshot here -->
 *Product list with search, category filter, stock badges, and actions to add/edit/delete.*
 
 ---
 
-### 📊 Admin — Analytics (`/admin/analytics`)
+### 📊 Admin: Analytics (`/admin/analytics`)
 <!-- Add screenshot here -->
 *Sales analytics with charts, top-selling products, and revenue breakdown.*
 
@@ -62,7 +74,7 @@
 
 ---
 
-### 📜 Cashier — Transaction History (`/cashier/history`)
+### 📜 Cashier: Transaction History (`/cashier/history`)
 <!-- Add screenshot here -->
 *Daily transaction history filtered by cashier session.*
 
@@ -76,14 +88,14 @@
 - Product detail page with stock and rating display
 - Persistent shopping cart (React Context)
 - Checkout form with validation
-- Payment page — Bank Transfer VA, E-Wallet, QRIS, Credit Card
+- Payment page: Bank Transfer VA, E-Wallet, QRIS, Credit Card
 - 24-hour payment countdown timer
 - Copy VA number and QR code display
 - **Confirm Payment** button that updates order status to `paid` in real time
 
 ### 🖥️ Admin Dashboard
 - Revenue overview cards and monthly chart (Recharts)
-- Full product CRUD — add, edit, delete with image upload
+- Full product CRUD: add, edit, delete with image upload
 - Order management with status filters
 - Analytics page with top products and revenue breakdown
 - Store settings
@@ -171,7 +183,7 @@ npm install
 ### 2. Set Up Supabase
 
 1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to **Project Settings → API** and copy your `URL`, `anon key`, and `service_role key` — you'll need them in step 3
+2. Go to **Project Settings → API** and copy your `URL`, `anon key`, and `service_role key` (you'll need them in step 3)
 3. Go to **SQL Editor** and run the following files **in this exact order**:
 
 ---
@@ -182,13 +194,13 @@ The base schema. Creates everything from scratch:
 - **Tables:** `profiles`, `products`, `orders`, `order_items`
 - **Indexes** on commonly queried columns (category, status, cashier_id, created_at)
 - **Auto `updated_at` trigger** on profiles, products, and orders
-- **Row Level Security (RLS)** — products are publicly readable; orders are scoped to their cashier or admin
-- **RPC function** `decrement_stock(product_id, qty)` — atomically reduces stock and increments `sold` count when an order is placed
+- **Row Level Security (RLS)**, products are publicly readable; orders are scoped to their cashier or admin
+- **RPC function** `decrement_stock(product_id, qty)`, atomically reduces stock and increments `sold` count when an order is placed
 - **16 sample products** across 6 categories (food, electronics, fashion, beauty, home, sports) with Unsplash images
 
 ---
 
-#### 📄 `migration_fix_rls_order_items.sql` — Run second
+#### 📄 `migration_fix_rls_order_items.sql`, Run second
 Patches missing RLS policies for the `order_items` table. **Without this, online checkout will fail** with a Supabase permission error. Adds:
 - Admin → full access to all `order_items`
 - Cashier → can read `order_items` for their own orders
@@ -197,7 +209,7 @@ Patches missing RLS policies for the `order_items` table. **Without this, online
 
 ---
 
-#### 📄 `migration_add_username_shift.sql` — Run third
+#### 📄 `migration_add_username_shift.sql`, Run third
 Adds two columns to the `profiles` table needed by the cashier settings page:
 ```sql
 username TEXT
@@ -206,28 +218,20 @@ shift    TEXT  DEFAULT 'pagi'
 
 ---
 
-#### 📄 `migration_add_notif_preferences.sql` — Run fourth
+#### 📄 `migration_add_notif_preferences.sql`, Run fourth
 Adds the notification preferences column used by the cashier/admin settings:
 ```sql
 notif_preferences JSONB  DEFAULT '{}'
 ```
 
-> **Note:** `migration_add_notif_preferences_v2.sql` combines the above two migrations into one. If you haven't run migrations 3 and 4 yet, you can run just this file instead of both — it uses `ADD COLUMN IF NOT EXISTS` so it's safe to run even if the columns already exist.
+> **Note:** `migration_add_notif_preferences_v2.sql` combines the above two migrations into one. If you haven't run migrations 3 and 4 yet, you can run just this file instead of both, it uses `ADD COLUMN IF NOT EXISTS` so it's safe to run even if the columns already exist.
 
 ### 3. Seed Default Users (optional)
 
-`seed.js` creates 3 default accounts in Supabase Auth and inserts their profiles:
-
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@nexasell.id` | `admin123456` | Admin |
-| `kasir@nexasell.id` | `kasir123456` | Cashier |
-| `kasir2@nexasell.id` | `kasir123456` | Cashier |
-
-Before running, open `seed.js` and replace lines 3–6 with your own project credentials:
+`seed.js` creates the 3 demo accounts listed at the top of this README. Before running, open `seed.js` and replace lines 3–6 with your own project credentials:
 
 ```js
-// seed.js — edit these two lines
+// seed.js, edit these two lines
 const supabase = createClient(
   'https://YOUR_PROJECT_ID.supabase.co',   // ← your project URL
   'your-service-role-key-here'              // ← service_role key (NOT anon key)
@@ -264,7 +268,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # App URL (used for payment callbacks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Midtrans (optional — only needed for real payment gateway)
+# Midtrans (optional, only needed for real payment gateway)
 MIDTRANS_SERVER_KEY=SB-Mid-server-xxxx
 MIDTRANS_IS_PRODUCTION=false
 ```
@@ -299,7 +303,7 @@ Use `'cashier'` instead of `'admin'` for cashier accounts.
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
@@ -313,7 +317,7 @@ Use `'cashier'` instead of `'admin'` for cashier accounts.
 
 ## ⚠️ Known Limitations & What's Missing
 
-### 💳 Payment Gateway — Not Fully Integrated
+### 💳 Payment Gateway, Not Fully Integrated
 The app includes a payment UI (Bank Transfer VA, E-Wallet, QRIS, Credit Card) and the backend route `POST /api/payment/create` is already wired to the **Midtrans Snap API**. However, it requires a Midtrans account and server key to function.
 
 **To enable real payments with Midtrans:**
@@ -327,9 +331,9 @@ The app includes a payment UI (Bank Transfer VA, E-Wallet, QRIS, Credit Card) an
 5. The webhook handler at `POST /api/payment/notification` is ready to receive Midtrans callbacks and update order status
 
 **Alternative payment gateways you could integrate instead:**
-- [**Xendit**](https://xendit.co) — popular in Indonesia, supports VA, QRIS, e-wallets
-- [**Duitku**](https://duitku.com) — local Indonesian gateway, simpler setup
-- [**Stripe**](https://stripe.com) — if targeting international customers
+- [**Xendit**](https://xendit.co), popular in Indonesia, supports VA, QRIS, e-wallets
+- [**Duitku**](https://duitku.com), local Indonesian gateway, simpler setup
+- [**Stripe**](https://stripe.com), if targeting international customers
 
 ### 📧 No Email Notifications
 There is no order confirmation email sent to customers after checkout. You could add this with:
@@ -362,8 +366,8 @@ The system is designed for a single store. Multi-branch or multi-tenant support 
 
 ## 🔒 Security Notes
 
-- Never commit `.env.local` to version control — it's in `.gitignore`
-- `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS — only use it server-side (API routes)
+- Never commit `.env.local` to version control, it's in `.gitignore`
+- `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS, only use it server-side (API routes)
 - `MIDTRANS_SERVER_KEY` must never be exposed to the browser
 
 ---
