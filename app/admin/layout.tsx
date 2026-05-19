@@ -12,32 +12,14 @@ function AdminContent({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Skip auth check on login page
     if (pathname === "/admin/login") { setChecking(false); return; }
-
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
-      if (error || !user) { router.replace("/admin/login"); return; }
-
-      // Fetch role from profiles
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || profile.role !== "admin") {
-        // Not an admin — redirect to cashier area
-        router.replace("/cashier");
-        return;
-      }
+    fetch("/api/admin/profile").then(res => {
+      if (!res.ok) { router.replace("/admin/login"); return; }
       setChecking(false);
     });
   }, [pathname, router]);
 
-  if (pathname === "/admin/login") {
-    return <>{children}</>;
-  }
+  if (pathname === "/admin/login") return <>{children}</>;
 
   if (checking) {
     return (
@@ -53,10 +35,8 @@ function AdminContent({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <AdminSidebar />
-      <div
-        className="pt-16 lg:pt-0 w-full max-w-full overflow-x-hidden"
-        style={{ paddingLeft: 0 }}
-      >
+
+      <div className="pt-16 lg:pt-0 w-full max-w-full overflow-x-hidden">
         <div className="lg:transition-[padding] lg:duration-300" style={{ paddingLeft: `var(--sidebar-offset, 0)` }}>
           <style>{`
             @media (min-width: 1024px) {

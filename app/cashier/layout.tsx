@@ -12,32 +12,18 @@ function CashierContent({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Skip auth check on login page
     if (pathname === "/cashier/login") { setChecking(false); return; }
-
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user }, error }) => {
       if (error || !user) { router.replace("/cashier/login"); return; }
-
-      // Fetch role from profiles
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || profile.role !== "cashier") {
-        // Not a cashier — redirect to admin area
-        router.replace("/admin");
-        return;
-      }
+        .from("profiles").select("role").eq("id", user.id).single();
+      if (!profile || profile.role !== "cashier") { router.replace("/admin"); return; }
       setChecking(false);
     });
   }, [pathname, router]);
 
-  if (pathname === "/cashier/login") {
-    return <>{children}</>;
-  }
+  if (pathname === "/cashier/login") return <>{children}</>;
 
   if (checking) {
     return (
@@ -53,6 +39,7 @@ function CashierContent({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <CashierSidebar />
+
       <div className="pt-16 lg:pt-0 w-full max-w-full overflow-x-hidden">
         <div className="lg:transition-[padding] lg:duration-300" style={{ paddingLeft: `var(--cashier-sidebar-offset, 0)` }}>
           <style>{`

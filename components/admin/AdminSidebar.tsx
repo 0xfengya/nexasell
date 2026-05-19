@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, PlusCircle, BarChart2,
   X, Menu, Zap, Settings, User, KeyRound, LogOut,
-  ChevronRight, ChevronLeft, Bell
+  ChevronRight, ChevronLeft, Bell, ShoppingBag
 } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
 import { useState, useRef, useEffect } from "react";
@@ -14,6 +14,7 @@ const nav = [
   { href:"/admin",              label:"Dashboard",   icon:LayoutDashboard, color:"#6366f1", bg:"rgba(99,102,241,0.1)"  },
   { href:"/admin/products",     label:"Products",    icon:Package,         color:"#3b82f6", bg:"rgba(59,130,246,0.1)"  },
   { href:"/admin/products/add", label:"Add Product", icon:PlusCircle,      color:"#8b5cf6", bg:"rgba(139,92,246,0.1)"  },
+  { href:"/admin/orders",       label:"Pesanan",     icon:ShoppingBag,     color:"#10b981", bg:"rgba(16,185,129,0.1)"  },
   { href:"/admin/analytics",    label:"Analytics",   icon:BarChart2,       color:"#06b6d4", bg:"rgba(6,182,212,0.1)"   },
   { href:"/admin/settings",     label:"Pengaturan",  icon:Settings,        color:"#f59e0b", bg:"rgba(245,158,11,0.1)"  },
 ];
@@ -157,21 +158,25 @@ function SidebarContent({ isMobile = false, displayName = "", displayUsername = 
           </div>
 
           {!isMobile ? (
-            <button
-              onClick={toggle}
-              className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background:"var(--surface2)", border:"1px solid var(--border)", transition:"background 0.15s, transform 0.2s" }}
-              title="Collapse sidebar"
-              onMouseEnter={e=>{ e.currentTarget.style.background="rgba(99,102,241,0.1)"; e.currentTarget.style.transform="scale(1.1)"; }}
-              onMouseLeave={e=>{ e.currentTarget.style.background="var(--surface2)"; e.currentTarget.style.transform="scale(1)"; }}>
-              <ChevronLeft className="w-3.5 h-3.5" style={{ color:"#6366f1" }} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={toggle}
+                className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
+                style={{ background:"var(--surface2)", border:"1px solid var(--border)", transition:"background 0.15s, transform 0.2s" }}
+                title="Collapse sidebar"
+                onMouseEnter={e=>{ e.currentTarget.style.background="rgba(99,102,241,0.1)"; e.currentTarget.style.transform="scale(1.1)"; }}
+                onMouseLeave={e=>{ e.currentTarget.style.background="var(--surface2)"; e.currentTarget.style.transform="scale(1)"; }}>
+                <ChevronLeft className="w-3.5 h-3.5" style={{ color:"#6366f1" }} />
+              </button>
+            </div>
           ) : (
-            <button onClick={close}
-              className="ml-auto flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
-              <X className="w-3.5 h-3.5" style={{ color:"var(--text2)" }} />
-            </button>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <button onClick={close}
+                className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
+                style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
+                <X className="w-3.5 h-3.5" style={{ color:"var(--text2)" }} />
+              </button>
+            </div>
           )}
         </div>
       )}

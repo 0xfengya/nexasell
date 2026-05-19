@@ -14,7 +14,6 @@ const payMethods = [
   { value: "ewallet",       label: "E-Wallet",      icon: Wallet,    sub: "GoPay / OVO / DANA" },
   { value: "qris",          label: "QRIS",           icon: Smartphone, sub: "Semua e-wallet" },
   { value: "credit_card",   label: "Kartu Kredit",   icon: CreditCard, sub: "Visa / Mastercard" },
-  { value: "cod",           label: "COD",            icon: Banknote,  sub: "Bayar di tempat" },
 ];
 
 /* ─── Field component di LUAR CheckoutPage ────────────────────────────────────
@@ -104,7 +103,7 @@ export default function CheckoutPage() {
           pay_method:       form.payment,
           source:           "online",
           items: items.map(i => ({
-            product_id: i.product.id,
+            product_id: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(i.product.id) ? i.product.id : null,
             name:       i.product.name,
             price:      i.product.price,
             quantity:   i.quantity,

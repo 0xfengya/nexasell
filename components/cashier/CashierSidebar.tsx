@@ -7,9 +7,10 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const nav = [
-  { href:"/cashier",          label:"POS Terminal", icon:ShoppingBag, color:"#10b981", bg:"rgba(16,185,129,0.1)"  },
-  { href:"/cashier/history",  label:"History",      icon:History,     color:"#06b6d4", bg:"rgba(6,182,212,0.1)"   },
-  { href:"/cashier/settings", label:"Pengaturan",   icon:Settings,    color:"#f59e0b", bg:"rgba(245,158,11,0.1)"  },
+  { href:"/cashier",               label:"POS Terminal",  icon:ShoppingBag, color:"#10b981", bg:"rgba(16,185,129,0.1)"  },
+  { href:"/cashier/notifications", label:"Notifikasi",    icon:Bell,        color:"#8b5cf6", bg:"rgba(139,92,246,0.1)"  },
+  { href:"/cashier/history",       label:"History",       icon:History,     color:"#06b6d4", bg:"rgba(6,182,212,0.1)"   },
+  { href:"/cashier/settings",      label:"Pengaturan",    icon:Settings,    color:"#f59e0b", bg:"rgba(245,158,11,0.1)"  },
 ];
 
 function UserDropdown() {
@@ -159,19 +160,23 @@ function SidebarContent({ isMobile=false }: { isMobile?:boolean }) {
             <p className="text-[9px] font-bold tracking-[0.16em] uppercase mt-0.5" style={{ color:"var(--text3)" }}>Cashier Station</p>
           </div>
           {!isMobile ? (
-            <button onClick={toggle}
-              className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background:"var(--surface2)", border:"1px solid var(--border)", transition:"background 0.15s, transform 0.2s" }}
-              title="Collapse sidebar"
-              onMouseEnter={e=>{ e.currentTarget.style.background="rgba(16,185,129,0.1)"; e.currentTarget.style.transform="scale(1.1)"; }}
-              onMouseLeave={e=>{ e.currentTarget.style.background="var(--surface2)"; e.currentTarget.style.transform="scale(1)"; }}>
-              <ChevronLeft className="w-3.5 h-3.5" style={{ color:"#10b981" }}/>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button onClick={toggle}
+                className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
+                style={{ background:"var(--surface2)", border:"1px solid var(--border)", transition:"background 0.15s, transform 0.2s" }}
+                title="Collapse sidebar"
+                onMouseEnter={e=>{ e.currentTarget.style.background="rgba(16,185,129,0.1)"; e.currentTarget.style.transform="scale(1.1)"; }}
+                onMouseLeave={e=>{ e.currentTarget.style.background="var(--surface2)"; e.currentTarget.style.transform="scale(1)"; }}>
+                <ChevronLeft className="w-3.5 h-3.5" style={{ color:"#10b981" }}/>
+              </button>
+            </div>
           ) : (
-            <button onClick={close} className="ml-auto flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
-              <X className="w-3.5 h-3.5" style={{ color:"var(--text2)" }}/>
-            </button>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <button onClick={close} className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
+                style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
+                <X className="w-3.5 h-3.5" style={{ color:"var(--text2)" }}/>
+              </button>
+            </div>
           )}
         </div>
       )}

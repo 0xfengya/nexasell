@@ -26,10 +26,11 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       if (tab === "login") {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: form.email.trim(), password: form.password });
+        const { error } = await supabase.auth.signInWithPassword({ email: form.email.trim(), password: form.password });
         if (error) { setErr(error.message); setLoading(false); return; }
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-        if (!profile || profile.role !== "admin") {
+        // Cek role via server-side API (bypass RLS pakai service role)
+        const res = await fetch("/api/admin/profile");
+        if (!res.ok) {
           await supabase.auth.signOut();
           setErr("Akun ini bukan admin. Gunakan Cashier Login.");
           setLoading(false); return;

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2, Clock, Copy, ArrowLeft, Banknote,
   Wallet, Smartphone, CreditCard, ChevronDown, ChevronUp,
@@ -15,7 +15,7 @@ import { useTheme } from "@/lib/ThemeContext";
 /* ─── Types ─── */
 type PayStatus = "pending" | "checking" | "success" | "expired";
 /* Key HARUS sama dengan value di checkout/page.tsx */
-type MethodKey = "bank_transfer" | "ewallet" | "qris" | "credit_card" | "cod";
+type MethodKey = "bank_transfer" | "ewallet" | "qris" | "credit_card";
 
 interface PayMethod {
   key: MethodKey;
@@ -92,29 +92,29 @@ const METHODS: PayMethod[] = [
       "Pembayaran dikonfirmasi otomatis",
     ],
   },
-  {
-    key: "cod",
-    label: "COD",
-    sub: "Bayar di tempat",
-    icon: Banknote,
-    color: "#10B981",
-    instructions: [
-      "Tidak perlu bayar sekarang — bayar saat barang tiba",
-      "Kurir akan menghubungi Anda sebelum tiba",
-      "Siapkan uang tunai sesuai total pesanan",
-      "Bayar langsung kepada kurir, minta struk",
-    ],
-  },
 ];
 
-/* ─── Mock order ─── */
-const MOCK_ORDER = {
-  id: "ORD-2024-0042",
-  total: 1_250_000,
-  items: [{ name: "Smart Watch Series 5", qty: 1, price: 1_250_000 }],
-  customerName: "Budi Santoso",
-  expiredAt: Date.now() + 24 * 60 * 60 * 1000,
-};
+/* ─── Real order type ─── */
+interface OrderItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+  image_url?: string;
+}
+
+interface RealOrder {
+  id: string;
+  order_number: string;
+  total: number;
+  customer_name: string;
+  pay_status: string;
+  status: string;
+  pay_method: string | null;
+  order_items: OrderItem[];
+  created_at: string;
+}
 
 /* ─── Format VA: 16 digit → "8277 0825 1234 5678" ─── */
 function formatVA(raw: string) {
@@ -200,20 +200,59 @@ function PaymentInner() {
   const dark = mounted ? _dark : false;
   const searchParams = useSearchParams();
 
-  const order = MOCK_ORDER;
+  /* Support both ?orderId= (from checkout) and ?order_id= */
+  const orderId = searchParams.get("orderId") ?? searchParams.get("order_id");
 
-  /* Baca method dari query param yang dikirim checkout, fallback ke bank_transfer */
-  const methodFromQuery = (searchParams.get("method") ?? "bank_transfer") as MethodKey;
+  const [order, setOrder] = useState<RealOrder | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+  const [orderError, setOrderError] = useState<string | null>(null);
+
+  /* Fetch real order on mount */
+  useEffect(() => {
+    if (!orderId) { setOrderError("Order ID tidak ditemukan di URL."); setLoadingOrder(false); return; }
+    fetch(`/api/orders/${orderId}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.error) { setOrderError(json.error); }
+        else { setOrder(json.data); }
+      })
+      .catch(() => setOrderError("Gagal memuat data order."))
+      .finally(() => setLoadingOrder(false));
+  }, [orderId]);
+
+  /* Baca method dari query param yang dikirim checkout, fallback ke pay_method order */
+  const methodFromQuery = (searchParams.get("method") ?? order?.pay_method ?? "bank_transfer") as MethodKey;
   const validKeys = METHODS.map(m => m.key);
   const initialKey: MethodKey = validKeys.includes(methodFromQuery) ? methodFromQuery : "bank_transfer";
 
   const [activeKey, setActiveKey] = useState<MethodKey>(initialKey);
-  const [status, setStatus] = useState<PayStatus>("pending");
+  const [status, setStatus] = useState<PayStatus>(
+    order?.pay_status === "success" ? "success" : "pending"
+  );
   const [showInstructions, setShowInstructions] = useState(true);
   const [simLoading, setSimLoading] = useState(false);
 
+  /* Sync status when order loads */
+  useEffect(() => {
+    if (order?.pay_status === "success") setStatus("success");
+  }, [order]);
+
+  /* Sync activeKey when order loads */
+  useEffect(() => {
+    if (order?.pay_method) {
+      const k = order.pay_method as MethodKey;
+      if (validKeys.includes(k)) setActiveKey(k);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.pay_method]);
+
+  /* Expiry = 24h after order creation */
+  const expiredAt = order
+    ? new Date(order.created_at).getTime() + 24 * 60 * 60 * 1000
+    : Date.now() + 24 * 60 * 60 * 1000;
+
   const method = METHODS.find(m => m.key === activeKey)!;
-  const countdown = useCountdown(order.expiredAt);
+  const countdown = useCountdown(expiredAt);
 
   const card: React.CSSProperties = {
     background: dark ? "rgba(255,255,255,.04)" : "#fff",
@@ -222,11 +261,56 @@ function PaymentInner() {
     boxShadow: dark ? "0 4px 24px rgba(0,0,0,.3)" : "0 4px 24px rgba(99,102,241,.08)",
   };
 
-  const checkPayment = () => {
+  /* Konfirmasi pembayaran manual — update pay_status = success di DB */
+  const checkPayment = async () => {
+    if (!orderId) return;
     setSimLoading(true);
     setStatus("checking");
-    setTimeout(() => { setSimLoading(false); setStatus("success"); }, 2000);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid", pay_status: "success" }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setOrder(json.data);
+        setStatus("success");
+      } else {
+        alert(json.error || "Gagal mengkonfirmasi pembayaran");
+        setStatus("pending");
+      }
+    } catch {
+      alert("Terjadi kesalahan. Coba lagi.");
+      setStatus("pending");
+    } finally {
+      setSimLoading(false);
+    }
   };
+
+  /* ── LOADING STATE ── */
+  if (loadingOrder) return (
+    <div className="flex-1 flex items-center justify-center py-24">
+      <div className="flex flex-col items-center gap-3">
+        <RefreshCw className="w-8 h-8 animate-spin" style={{ color: "#6366f1" }} />
+        <p className="text-sm font-semibold" style={{ color: "var(--text2)" }}>Memuat data pesanan...</p>
+      </div>
+    </div>
+  );
+
+  /* ── ERROR STATE ── */
+  if (orderError || !order) return (
+    <div className="flex-1 flex items-center justify-center py-24 px-4">
+      <div className="text-center max-w-sm">
+        <p className="text-lg font-black mb-2" style={{ color: "var(--text)" }}>Order Tidak Ditemukan</p>
+        <p className="text-sm mb-6" style={{ color: "var(--text2)" }}>{orderError ?? "Data pesanan tidak tersedia."}</p>
+        <Link href="/" className="px-6 py-3 rounded-2xl text-white text-sm font-bold"
+          style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+          Kembali ke Toko
+        </Link>
+      </div>
+    </div>
+  );
 
   /* ── GLOBAL STYLES ── */
   const globalCss = `
@@ -268,7 +352,7 @@ function PaymentInner() {
         <div className="py-up" style={{ animationDelay: "0.2s" }}>
           <h2 className="text-2xl font-black mb-2" style={{ color: "var(--text)" }}>Pembayaran Berhasil!</h2>
           <p className="text-sm" style={{ color: "var(--text2)" }}>
-            Pesanan <span className="font-bold" style={{ color: "#6366f1" }}>{order.id}</span> sedang diproses.
+            Pesanan <span className="font-bold" style={{ color: "#6366f1" }}>{order.order_number}</span> sedang diproses.
             Estimasi pengiriman 2–3 hari kerja.
           </p>
         </div>
@@ -334,12 +418,12 @@ function PaymentInner() {
           </h1>
           <span className="text-[10px] font-black px-2.5 py-1 rounded-full text-white"
             style={{ background: "linear-gradient(135deg,#003cff,#0066ff)", boxShadow: "0 2px 8px rgba(0,60,255,.3)" }}>
-            🔒 Powered by Midtrans
+            🔒 Aman & Terenkripsi
           </span>
         </div>
         <p className="text-sm" style={{ color: "var(--text2)" }}>
-          Order <span className="font-bold" style={{ color: "#6366f1" }}>{order.id}</span>
-          {" · "}{order.customerName}
+          Order <span className="font-bold" style={{ color: "#6366f1" }}>{order.order_number}</span>
+          {" · "}{order.customer_name}
         </p>
       </div>
 
@@ -473,20 +557,6 @@ function PaymentInner() {
               </div>
             )}
 
-            {/* COD */}
-            {method.key === "cod" && (
-              <div className="mb-5 px-4 py-4 rounded-2xl"
-                style={{
-                  background: dark ? "rgba(16,185,129,.08)" : "rgba(16,185,129,.07)",
-                  border: "1px solid rgba(16,185,129,.25)",
-                }}>
-                <p className="text-sm font-black mb-1" style={{ color: "#059669" }}>💵 Bayar Saat Barang Tiba</p>
-                <p className="text-xs" style={{ color: dark ? "#6ee7b7" : "#047857" }}>
-                  Tidak perlu bayar sekarang. Siapkan uang tunai sebesar <strong>{formatRupiah(order.total)}</strong> saat kurir tiba.
-                </p>
-              </div>
-            )}
-
             {/* Instructions */}
             <div>
               <button
@@ -521,8 +591,8 @@ function PaymentInner() {
             </div>
           </div>
 
-          {/* Cek status (bukan credit_card dan bukan cod) */}
-          {method.key !== "credit_card" && method.key !== "cod" && (
+          {/* Cek status (bukan credit_card) */}
+          {method.key !== "credit_card" && (
             <button
               type="button"
               onClick={checkPayment}
@@ -536,25 +606,10 @@ function PaymentInner() {
               } as React.CSSProperties}
             >
               <RefreshCw className={`w-4 h-4 ${simLoading ? "animate-spin" : ""}`} />
-              {simLoading ? "Mengecek Pembayaran..." : "Cek Status Pembayaran"}
+              {simLoading ? "Mengkonfirmasi..." : "Konfirmasi Pembayaran"}
             </button>
           )}
 
-          {/* COD confirm */}
-          {method.key === "cod" && (
-            <button
-              type="button"
-              onClick={() => setStatus("success")}
-              className="py-cta flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-sm font-black text-white"
-              style={{
-                background: "linear-gradient(135deg,#10b981,#059669)",
-                boxShadow: "0 4px 20px rgba(16,185,129,.35)",
-              }}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Konfirmasi Pesanan COD
-            </button>
-          )}
         </div>
 
         {/* ── RIGHT ── */}
@@ -567,14 +622,14 @@ function PaymentInner() {
               Ringkasan Pesanan
             </p>
             <div className="flex flex-col gap-3 mb-4">
-              {order.items.map((item, i) => (
-                <div key={i} className="flex items-start justify-between gap-2">
+              {order.order_items.map((item) => (
+                <div key={item.id} className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold" style={{ color: "var(--text)" }}>{item.name}</p>
-                    <p className="text-[11px]" style={{ color: "var(--text3)" }}>× {item.qty}</p>
+                    <p className="text-[11px]" style={{ color: "var(--text3)" }}>× {item.quantity}</p>
                   </div>
                   <p className="text-xs font-black tabular-nums flex-shrink-0" style={{ color: "var(--text)" }}>
-                    {formatRupiah(item.price * item.qty)}
+                    {formatRupiah(item.subtotal)}
                   </p>
                 </div>
               ))}
@@ -613,14 +668,13 @@ function PaymentInner() {
             <div className="flex items-center gap-2 mb-1.5">
               <Zap className="w-3.5 h-3.5 text-indigo-400" />
               <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#818cf8" }}>
-                Dev Note — Midtrans
+                Info Pembayaran
               </span>
             </div>
             <p className="text-[10px] leading-relaxed" style={{ color: "var(--text3)" }}>
-              Frontend siap. Untuk live:{" "}
-              <code style={{ color: "#a5b4fc" }}>POST /api/payment/create</code> → dapat{" "}
-              <code style={{ color: "#a5b4fc" }}>snap_token</code> →{" "}
-              <code style={{ color: "#a5b4fc" }}>window.snap.pay(token)</code>.
+              Setelah melakukan transfer, klik{" "}
+              <strong style={{ color: "#a5b4fc" }}>Konfirmasi Pembayaran</strong> di bawah
+              agar pesanan Anda segera diproses.
             </p>
           </div>
         </div>

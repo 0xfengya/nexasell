@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Package, ShoppingBag, TrendingUp, Users, Clock, Star, ArrowUpRight, Plus, Eye, BarChart2, RefreshCw, Loader2 } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import RevenueChart from "@/components/admin/RevenueChart";
+import NotificationBell from "@/components/NotificationBell";
 import Link from "next/link";
 
 interface TopProduct { id: string; name: string; sold: number; price: number; image_url: string | null; category: string; }
@@ -94,6 +95,7 @@ export default function AdminDashboard() {
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ animation: "pulse 2s ease-in-out infinite" }} />
             <span className="text-xs font-bold tabular-nums" style={{ color: "var(--text)" }}>{timeStr}</span>
           </div>
+          <NotificationBell role="admin" accentColor="#6366f1" apiBase="/api/admin" />
           <button onClick={fetchData} disabled={refreshing}
             className="w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-60"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
