@@ -44,7 +44,8 @@ export default function AdminLoginPage() {
         });
         if (error) { setErr(error.message); setLoading(false); return; }
         if (data.user) {
-          await supabase.from("profiles").upsert({ id: data.user.id, role: "admin", full_name: form.name.trim() || null });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from("profiles").upsert({ id: data.user.id, role: "admin", full_name: form.name.trim() || null });
         }
         setDone(true);
         setTimeout(() => router.push("/admin"), 1200);
