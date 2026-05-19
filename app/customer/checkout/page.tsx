@@ -56,7 +56,7 @@ function Field({ field, label, placeholder = "", type = "text", required = false
 }
 
 export default function CheckoutPage() {
-  const { items, total } = useCart();
+  const { items, total, clearCart } = useCart();
   const router = useRouter();
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -113,6 +113,7 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || "Gagal membuat order"); setLoading(false); return; }
+      clearCart();
       router.push(`/customer/payment?orderId=${data.data.id}&method=${form.payment}`);
     } catch { alert("Terjadi kesalahan. Coba lagi."); setLoading(false); }
   };

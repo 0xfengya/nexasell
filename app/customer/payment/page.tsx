@@ -11,6 +11,7 @@ import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import { formatRupiah } from "@/lib/utils";
 import { useTheme } from "@/lib/ThemeContext";
+import { useCart } from "@/lib/CartContext";
 
 /* ─── Types ─── */
 type PayStatus = "pending" | "checking" | "success" | "expired";
@@ -198,6 +199,7 @@ function NumberBox({ label, number, dark }: { label: string; number: string; dar
 function PaymentInner() {
   const { dark: _dark, mounted } = useTheme();
   const dark = mounted ? _dark : false;
+  const { clearCart } = useCart();
   const searchParams = useSearchParams();
 
   /* Support both ?orderId= (from checkout) and ?order_id= */
@@ -234,8 +236,11 @@ function PaymentInner() {
 
   /* Sync status when order loads */
   useEffect(() => {
-    if (order?.pay_status === "success") setStatus("success");
-  }, [order]);
+    if (order?.pay_status === "success") {
+      setStatus("success");
+      clearCart();
+    }
+  }, [order, clearCart]);
 
   /* Sync activeKey when order loads */
   useEffect(() => {
@@ -276,6 +281,7 @@ function PaymentInner() {
       if (res.ok && json.data) {
         setOrder(json.data);
         setStatus("success");
+        clearCart();
       } else {
         alert(json.error || "Gagal mengkonfirmasi pembayaran");
         setStatus("pending");
