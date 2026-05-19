@@ -21,61 +21,61 @@ After running `seed.js`, use these accounts to log in:
 ## 📸 Screenshots
 
 ### 🏠 Homepage / Customer Storefront (`/`)
-<!-- Add screenshot here -->
+![Homepage](public/screenshots/homepage.png)
 *Hero section with flash sale countdown, best sellers, category filter, and real-time product search.*
 
 ---
 
 ### 🛍️ Product Detail (`/customer/products/[id]`)
-<!-- Add screenshot here -->
+![Product Detail](public/screenshots/product-detail.png)
 *Product page with image, description, stock info, quantity selector, and Add to Cart button.*
 
 ---
 
 ### 🛒 Cart (`/customer/cart`)
-<!-- Add screenshot here -->
+![Cart](public/screenshots/cart.png)
 *Shopping cart with item list, quantity control, subtotal, and proceed to checkout button.*
 
 ---
 
 ### 📋 Checkout (`/customer/checkout`)
-<!-- Add screenshot here -->
+![Checkout](public/screenshots/checkout.png)
 *Checkout form with customer info (name, phone, address), payment method selector, and order summary.*
 
 ---
 
 ### 💳 Payment (`/customer/payment`)
-<!-- Add screenshot here -->
+![Payment](public/screenshots/payment.png)
 *Payment page showing the selected method (Bank Transfer VA, E-Wallet, QRIS, Credit Card) with instructions, countdown timer, and a Confirm Payment button that marks the order as paid.*
 
 ---
 
 ### 🖥️ Admin Dashboard (`/admin`)
-<!-- Add screenshot here -->
+![Admin Dashboard](public/screenshots/admin-dashboard.png)
 *Overview of total revenue, transactions, products, and a monthly revenue chart.*
 
 ---
 
 ### 📦 Admin: Product Management (`/admin/products`)
-<!-- Add screenshot here -->
+![Admin Products](public/screenshots/admin-products.png)
 *Product list with search, category filter, stock badges, and actions to add/edit/delete.*
 
 ---
 
 ### 📊 Admin: Analytics (`/admin/analytics`)
-<!-- Add screenshot here -->
+![Admin Analytics](public/screenshots/admin-analytics.png)
 *Sales analytics with charts, top-selling products, and revenue breakdown.*
 
 ---
 
 ### 🧾 Cashier Panel (`/cashier`)
-<!-- Add screenshot here -->
+![Cashier](public/screenshots/cashier.png)
 *POS interface for cashiers to process walk-in transactions with cash or card.*
 
 ---
 
 ### 📜 Cashier: Transaction History (`/cashier/history`)
-<!-- Add screenshot here -->
+![Cashier History](public/screenshots/cashier-history.png)
 *Daily transaction history filtered by cashier session.*
 
 ---
