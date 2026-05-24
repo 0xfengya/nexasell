@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import type { ProfileRow } from "@/lib/supabase/types";
 
 // ─── GET /api/cashier/profile ─────────────────────────────────
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .single() as { data: ProfileRow | null; error: unknown };
 
     if (profileErr) throw profileErr;
 
