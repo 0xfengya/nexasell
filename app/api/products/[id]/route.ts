@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { ProductRow } from "@/lib/supabase/types";
 import { createAdminClient, createClient, getProfileRole } from "@/lib/supabase/server";
 
 // Helper: cek apakah user adalah admin
@@ -53,7 +54,8 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updateData: Record<string, unknown> = {};
+    type ProductUpdate = Partial<Pick<ProductRow, "name"|"price"|"original_price"|"category"|"image_url"|"description"|"stock"|"badge"|"is_active">>;
+    const updateData: ProductUpdate = {};
     if (body.name        !== undefined) updateData.name           = body.name.trim();
     if (body.price       !== undefined) updateData.price          = Number(body.price);
     if (body.original_price !== undefined) updateData.original_price = body.original_price ? Number(body.original_price) : null;
