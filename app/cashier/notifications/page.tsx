@@ -15,9 +15,10 @@ interface AppNotif {
   createdAt: Date;
 }
 
-const ICONS: Record<AppNotif["type"], { icon: typeof Bell; color: string; bg: string }> = {
+const ICONS: Record<AppNotif["type"] | "system", { icon: typeof Bell; color: string; bg: string }> = {
   new_trx:   { icon: ShoppingBag,   color: "#10b981", bg: "rgba(16,185,129,0.12)" },
   low_stock: { icon: AlertTriangle, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  system:    { icon: Bell,          color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
 };
 
 const TYPE_LABELS: Record<AppNotif["type"], string> = {
