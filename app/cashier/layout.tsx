@@ -4,6 +4,7 @@ import { SidebarProvider, useSidebar } from "@/lib/SidebarContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { ProfileRow } from "@/lib/supabase/types";
 
 function CashierContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
@@ -17,7 +18,7 @@ function CashierContent({ children }: { children: React.ReactNode }) {
     supabase.auth.getUser().then(async ({ data: { user }, error }) => {
       if (error || !user) { router.replace("/cashier/login"); return; }
       const { data: profile } = await supabase
-        .from("profiles").select("role").eq("id", user.id).single();
+        .from("profiles").select("role").eq("id", user.id).single() as { data: Pick<ProfileRow, "role"> | null };
       if (!profile || profile.role !== "cashier") { router.replace("/admin"); return; }
       setChecking(false);
     });
