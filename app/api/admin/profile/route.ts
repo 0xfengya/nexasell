@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { ProfileRow } from "@/lib/supabase/types";
 
+type ProfileUpdate = Partial<Pick<ProfileRow, "full_name" | "username" | "phone" | "avatar_url">> & {
+  notif_preferences?: unknown;
+};
+
 // ─── GET /api/admin/profile ───────────────────────────────────
 export async function GET() {
   try {
@@ -10,11 +14,11 @@ export async function GET() {
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const supabase = createAdminClient();
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profile, error: profileErr } = await (supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single() as { data: ProfileRow | null; error: unknown };
+      .single() as unknown as Promise<{ data: ProfileRow | null; error: unknown }>);
 
     if (profileErr) throw profileErr;
     if (!profile || profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -46,28 +50,30 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    const { data: existing } = await supabase
+    const { data: existing } = await (supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single() as { data: Pick<ProfileRow, "role"> | null };
+      .single() as unknown as Promise<{ data: Pick<ProfileRow, "role"> | null }>);
 
     if (!existing || existing.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error: updateErr } = await supabase
+    const updatePayload: ProfileUpdate = {
+      ...(full_name         !== undefined && { full_name:         full_name?.trim()  || null }),
+      ...(username          !== undefined && { username:          username?.trim()   || null }),
+      ...(phone             !== undefined && { phone:             phone?.trim()      || null }),
+      ...(avatar_url        !== undefined && { avatar_url:        avatar_url?.trim() || null }),
+      ...(notif_preferences !== undefined && { notif_preferences }),
+    };
+
+    const { data, error: updateErr } = await (supabase
       .from("profiles")
-      .update({
-        ...(full_name          !== undefined && { full_name:          full_name?.trim()  || null }),
-        ...(username           !== undefined && { username:           username?.trim()   || null }),
-        ...(phone              !== undefined && { phone:              phone?.trim()      || null }),
-        ...(avatar_url         !== undefined && { avatar_url:         avatar_url?.trim() || null }),
-        ...(notif_preferences  !== undefined && { notif_preferences }),
-      })
+      .update(updatePayload as never)
       .eq("id", user.id)
       .select()
-      .single();
+      .single() as unknown as Promise<{ data: ProfileRow | null; error: unknown }>);
 
     if (updateErr) throw updateErr;
 
