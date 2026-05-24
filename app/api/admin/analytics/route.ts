@@ -37,7 +37,7 @@ export async function GET() {
         .limit(10),
     ]);
 
-    const totalRevenue = (paidOrders ?? []).reduce((s, o) => s + (o.total ?? 0), 0);
+    const totalRevenue = (paidOrders ?? []).reduce((s: number, o: { total: number | null; created_at: string | null }) => s + (o.total ?? 0), 0);
 
     // Revenue per bulan (6 bulan terakhir)
     const now = new Date();
@@ -47,7 +47,7 @@ export async function GET() {
       const monthName = d.toLocaleString("id-ID", { month: "short" });
       const revenue = (paidOrders ?? [])
         .filter(o => o.created_at && o.created_at.startsWith(monthKey))
-        .reduce((s, o) => s + (o.total ?? 0), 0);
+        .reduce((s: number, o: { total: number | null; created_at: string | null }) => s + (o.total ?? 0), 0);
       return { month: monthName, revenue };
     });
 
