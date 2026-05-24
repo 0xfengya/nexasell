@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { OrderRow } from "@/lib/supabase/types";
 import { createAdminClient } from "@/lib/supabase/server";
 
 // ─── POST /api/payment/create ─────────────────────────────────
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       .from("orders")
       .select("*, order_items(*)")
       .eq("id", order_id)
-      .single();
+      .single() as unknown as Promise<{ data: (OrderRow & { order_items: { name: string; price: number; quantity: number }[] }) | null; error: unknown }>;
 
     if (orderErr || !order) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
         snap_token:         snapToken,
         payment_url:        paymentUrl,
         midtrans_order_id:  midtransOrderId,
-      })
+      } as never)
       .eq("id", order_id);
 
     return NextResponse.json({ snap_token: snapToken, payment_url: paymentUrl });
