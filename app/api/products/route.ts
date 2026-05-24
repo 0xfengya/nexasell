@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (stock == null || stock < 0) return NextResponse.json({ error: "stock tidak valid" }, { status: 400 });
 
     const supabaseAdmin = createAdminClient();
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin
       .from("products")
       .insert({
         name:           name.trim(),
@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
         sold:           0,
         rating:         0,
         is_active:      true,
-      })
+      } as never)
       .select()
-      .single();
+      .single() as unknown as Promise<{ data: unknown; error: unknown }>);
 
     if (error) throw error;
 
