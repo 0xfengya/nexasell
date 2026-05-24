@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import type { OrderRow } from "@/lib/supabase/types";
 import { createHash } from "crypto";
 
 // ─── POST /api/payment/notification ──────────────────────────
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       .from("orders")
       .select("id, status, pay_status")
       .eq("midtrans_order_id", midtransOrderId)
-      .single();
+      .single() as unknown as Promise<{ data: Pick<OrderRow, "id" | "status" | "pay_status"> | null; error: unknown }>;
 
     if (orderErr || !order) {
       console.warn("[Webhook] Order tidak ditemukan:", midtransOrderId);
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     // ─── Update order ─────────────────────────────────────────
     const { error: updateErr } = await supabase
       .from("orders")
-      .update({ pay_status: payStatus, status: orderStatus })
+      .update({ pay_status: payStatus, status: orderStatus } as never)
       .eq("id", order.id);
 
     if (updateErr) {
