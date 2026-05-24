@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import type { OrderRow } from "@/lib/supabase/types";
+
+type OrderUpdate = Partial<Pick<OrderRow, "status" | "pay_status" | "snap_token" | "payment_url">>;
 
 // ─── GET /api/orders/[id] ─────────────────────────────────────
 export async function GET(
@@ -28,7 +31,6 @@ export async function GET(
 }
 
 // ─── PATCH /api/orders/[id] ───────────────────────────────────
-// Update status order (misal setelah Midtrans callback)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -38,11 +40,11 @@ export async function PATCH(
     const body = await request.json();
     const supabase = createAdminClient();
 
-    const updateData: Record<string, unknown> = {};
-    if (body.status       !== undefined) updateData.status       = body.status;
-    if (body.pay_status   !== undefined) updateData.pay_status   = body.pay_status;
-    if (body.snap_token   !== undefined) updateData.snap_token   = body.snap_token;
-    if (body.payment_url  !== undefined) updateData.payment_url  = body.payment_url;
+    const updateData: OrderUpdate = {};
+    if (body.status      !== undefined) updateData.status      = body.status;
+    if (body.pay_status  !== undefined) updateData.pay_status  = body.pay_status;
+    if (body.snap_token  !== undefined) updateData.snap_token  = body.snap_token;
+    if (body.payment_url !== undefined) updateData.payment_url = body.payment_url;
 
     const { data, error } = await supabase
       .from("orders")
