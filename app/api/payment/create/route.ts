@@ -16,11 +16,11 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Ambil order beserta items
-    const { data: order, error: orderErr } = await supabase
+    const { data: order, error: orderErr } = await (supabase
       .from("orders")
       .select("*, order_items(*)")
       .eq("id", order_id)
-      .single() as unknown as Promise<{ data: (OrderRow & { order_items: { name: string; price: number; quantity: number }[] }) | null; error: unknown }>;
+      .single() as unknown as Promise<{ data: (OrderRow & { order_items: { name: string; price: number; quantity: number }[] }) | null; error: unknown }>);
 
     if (orderErr || !order) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
