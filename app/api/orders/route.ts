@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient, getProfileRole } from "@/lib/supabase/server";
+import type { OrderRow, OrderItemRow } from "@/lib/supabase/types";
 
 // Buat order number unik: NXS-YYYYMMDD-XXXX
 function generateOrderNumber(): string {
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
         pay_status:       (source === "pos" && pay_method !== "qris") ? "success" : "pending",
         source,
         cashier_id:       cashier_id || null,
-      })
+      } as Omit<OrderRow, "id" | "created_at" | "updated_at">)
       .select()
       .single();
 
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     const { error: itemsErr } = await supabase
       .from("order_items")
-      .insert(orderItemsData);
+      .insert(orderItemsData as Omit<OrderItemRow, "id">[]);
 
     if (itemsErr) throw itemsErr;
 
