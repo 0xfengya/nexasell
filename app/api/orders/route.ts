@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       if (item.product_id) {
         try {
-          const { error: rpcErr } = await supabase.rpc("decrement_stock", {
+          const { error: rpcErr } = await (supabase as unknown as { rpc: (fn: string, args: unknown) => Promise<{ error: unknown }> }).rpc("decrement_stock", {
             p_product_id: item.product_id,
             p_qty:        item.quantity,
           });
