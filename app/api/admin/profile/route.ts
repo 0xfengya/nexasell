@@ -17,7 +17,7 @@ export async function GET() {
       .single() as { data: ProfileRow | null; error: unknown };
 
     if (profileErr) throw profileErr;
-    if (profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!profile || profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     // Attach auth metadata (last_sign_in_at)
     const { data: authUser } = await supabase.auth.admin.getUserById(user.id);
