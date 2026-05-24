@@ -100,7 +100,7 @@ export async function DELETE(
     // Soft delete: set is_active = false agar order history tetap valid
     const { error } = await supabase
       .from("products")
-      .update({ is_active: false })
+      .update({ is_active: false } as never)
       .eq("id", id);
 
     if (error) throw error;
