@@ -5,6 +5,7 @@ import { ShoppingBag, History, X, Menu, Zap, Settings, User, KeyRound, LogOut, C
 import { useSidebar } from "@/lib/SidebarContext";
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { ProfileRow } from "@/lib/supabase/types";
 
 const nav = [
   { href:"/cashier",               label:"POS Terminal",  icon:ShoppingBag, color:"#10b981", bg:"rgba(16,185,129,0.1)"  },
@@ -26,7 +27,7 @@ function UserDropdown() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
-      supabase.from("profiles").select("full_name, role").eq("id", user.id).single()
+      (supabase.from("profiles").select("full_name, role").eq("id", user.id).single() as Promise<{ data: Pick<ProfileRow, "full_name" | "role"> | null }>)
         .then(({ data }) => {
           const name = data?.full_name || user.email?.split("@")[0] || "Kasir";
           setUserName(name);
