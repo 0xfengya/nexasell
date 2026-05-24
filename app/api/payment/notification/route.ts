@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
 
     // ─── Cari order di DB ─────────────────────────────────────
     const supabase = createAdminClient();
-    const { data: order, error: orderErr } = await supabase
+    const { data: order, error: orderErr } = await (supabase
       .from("orders")
       .select("id, status, pay_status")
       .eq("midtrans_order_id", midtransOrderId)
-      .single() as unknown as Promise<{ data: Pick<OrderRow, "id" | "status" | "pay_status"> | null; error: unknown }>;
+      .single() as unknown as Promise<{ data: Pick<OrderRow, "id" | "status" | "pay_status"> | null; error: unknown }>);
 
     if (orderErr || !order) {
       console.warn("[Webhook] Order tidak ditemukan:", midtransOrderId);
