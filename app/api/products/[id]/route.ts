@@ -69,7 +69,7 @@ export async function PUT(
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("products")
-      .update(updateData)
+      .update(updateData as never)
       .eq("id", id)
       .select()
       .single();
