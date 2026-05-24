@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { ProfileRow } from "@/lib/supabase/types";
 
+type ProfileUpdate = Partial<Pick<ProfileRow, "full_name" | "username" | "phone" | "shift">> & {
+  notif_preferences?: unknown;
+};
+
 // ─── GET /api/cashier/profile ─────────────────────────────────
 export async function GET() {
   try {
@@ -10,11 +14,11 @@ export async function GET() {
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const supabase = createAdminClient();
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profile, error: profileErr } = await (supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single() as { data: ProfileRow | null; error: unknown };
+      .single() as unknown as Promise<{ data: ProfileRow | null; error: unknown }>);
 
     if (profileErr) throw profileErr;
 
@@ -44,18 +48,21 @@ export async function PATCH(request: NextRequest) {
     const { full_name, username, phone, shift, notif_preferences } = body;
 
     const supabase = createAdminClient();
-    const { data, error: updateErr } = await supabase
+
+    const updatePayload: ProfileUpdate = {
+      ...(full_name         !== undefined && { full_name:         full_name?.trim() || null }),
+      ...(username          !== undefined && { username:          username?.trim()  || null }),
+      ...(phone             !== undefined && { phone:             phone?.trim()     || null }),
+      ...(shift             !== undefined && { shift:             shift             || null }),
+      ...(notif_preferences !== undefined && { notif_preferences }),
+    };
+
+    const { data, error: updateErr } = await (supabase
       .from("profiles")
-      .update({
-        ...(full_name         !== undefined && { full_name:         full_name?.trim() || null }),
-        ...(username          !== undefined && { username:          username?.trim()  || null }),
-        ...(phone             !== undefined && { phone:             phone?.trim()     || null }),
-        ...(shift             !== undefined && { shift:             shift             || null }),
-        ...(notif_preferences !== undefined && { notif_preferences }),
-      })
+      .update(updatePayload as never)
       .eq("id", user.id)
       .select()
-      .single();
+      .single() as unknown as Promise<{ data: ProfileRow | null; error: unknown }>);
 
     if (updateErr) throw updateErr;
 
