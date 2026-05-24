@@ -27,7 +27,7 @@ function UserDropdown() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
-      (supabase.from("profiles").select("full_name, role").eq("id", user.id).single() as Promise<{ data: Pick<ProfileRow, "full_name" | "role"> | null }>)
+      (supabase.from("profiles").select("full_name, role").eq("id", user.id).single() as unknown as Promise<{ data: Pick<ProfileRow, "full_name" | "role"> | null }>)
         .then(({ data }) => {
           const name = data?.full_name || user.email?.split("@")[0] || "Kasir";
           setUserName(name);
