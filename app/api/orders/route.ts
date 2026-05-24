@@ -171,9 +171,9 @@ export async function POST(request: NextRequest) {
               await supabase
                 .from("products")
                 .update({
-                  stock: Math.max(0, prodData.stock - item.quantity),
-                  sold:  (prodData.sold ?? 0) + item.quantity,
-                })
+                  stock: Math.max(0, (prodData as { stock: number; sold: number }).stock - item.quantity),
+                  sold:  ((prodData as { stock: number; sold: number }).sold ?? 0) + item.quantity,
+                } as never)
                 .eq("id", item.product_id);
             }
           }
