@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const total        = subtotal + shipping_cost;
 
     // Buat order
-    const { data: order, error: orderErr } = await supabase
+    const { data: order, error: orderErr } = await (supabase
       .from("orders")
       .insert({
         order_number:     generateOrderNumber(),
@@ -121,9 +121,10 @@ export async function POST(request: NextRequest) {
         cashier_id:       cashier_id || null,
       } as never)
       .select()
-      .single();
+      .single() as unknown as Promise<{ data: { id: string; [key: string]: unknown } | null; error: unknown }>);
 
     if (orderErr) throw orderErr;
+    if (!order) throw new Error("Order tidak terbuat");
 
     // Insert order items
     const orderItemsData = itemsWithSubtotal.map((item: {
