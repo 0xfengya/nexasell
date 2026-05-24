@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import type { ProfileRow } from "@/lib/supabase/types";
 
 // ─── GET /api/admin/profile ───────────────────────────────────
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .single() as { data: ProfileRow | null; error: unknown };
 
     if (profileErr) throw profileErr;
     if (profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -49,7 +50,7 @@ export async function PATCH(request: NextRequest) {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .single() as { data: Pick<ProfileRow, "role"> | null };
 
     if (!existing || existing.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
