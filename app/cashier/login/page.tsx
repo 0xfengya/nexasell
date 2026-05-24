@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Zap, Lock, Mail, ArrowRight, CheckCircle2, Receipt, Clock, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import type { ProfileRow } from "@/lib/supabase/types";
 
 export default function CashierLoginPage() {
   const router   = useRouter();
@@ -26,7 +27,7 @@ export default function CashierLoginPage() {
         email: form.email.trim(), password: form.password,
       });
       if (error) { setErr(error.message); setLoading(false); return; }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single() as { data: Pick<ProfileRow, "role"> | null };
       if (!profile || !["cashier","admin"].includes(profile.role)) {
         await supabase.auth.signOut();
         setErr("Akun ini tidak memiliki akses kasir.");
